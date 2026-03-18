@@ -43,6 +43,9 @@ class Conv1d(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: [B, C_in, L]
         B, C_in, _ = x.shape
+        assert C_in == self.in_channels, (
+            f"Expected input channels {self.in_channels}, got {C_in}"
+        )
 
         # 1. Manual zero-padding along the length dimension
         if self.padding > 0:
@@ -52,7 +55,7 @@ class Conv1d(nn.Module):
 
         # 2. Sliding window: tensor.unfold(dim, size, step) → [B, C_in, L_out, k]
         L_out = x.size(2) - self.kernel_size + 1
-        x_unf = x.unfold(1, self.kernel_size, 1)  # [B, C_in, L_out, k]
+        x_unf = x.unfold(2, self.kernel_size, 1)  # [B, C_in, L_out, k]
 
         # 3. Grouped multiply-accumulate
         G       = self.groups
@@ -114,6 +117,9 @@ class Conv2d(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: [B, C_in, H, W]
         B, C_in, H, W = x.shape
+        assert C_in == self.in_channels, (
+            f"Expected input channels {self.in_channels}, got {C_in}"
+        )
         k = self.kernel_size
 
         # 1. Manual 2-D zero-padding
@@ -121,7 +127,7 @@ class Conv2d(nn.Module):
             p = self.padding
             pad_h = x.new_zeros(B, C_in, p, W)
             x = torch.cat([pad_h, x, pad_h], dim=2)       # [B, C_in, H+2p, W]
-            pad_w = x.new_zeros(B, C_in, H, p)
+            pad_w = x.new_zeros(B, C_in, H + 2*p, p)
             x = torch.cat([pad_w, x, pad_w], dim=3)       # [B, C_in, H+2p, W+2p]
 
         # 2. Sliding window along height then width
@@ -172,4 +178,5 @@ class DepthwiseSeparableConv(nn.Module):
             constant_(self.pointwise_conv.bias, 0.0)
 
     def forward(self, x):
-        return self.depthwise_conv(self.pointwise_conv(x))
+        # return self.depthwise_conv(self.pointwise_conv(x))
+        return self.pointwise_conv(self.depthwise_conv(x))

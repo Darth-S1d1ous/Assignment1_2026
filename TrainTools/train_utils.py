@@ -3,6 +3,7 @@ train_utils.py — Low-level training utilities used by train().
 """
 
 import os
+import math
 
 import numpy as np
 import torch
@@ -29,11 +30,20 @@ def train_single_epoch(model, optimizer, scheduler, data_iter,
 
         p1, p2 = model(Cwid, Ccid, Qwid, Qcid)
         loss   = loss_fn(p1, p2, y1, y2)
+
+        # if not math.isfinite(float(loss.item())):
+        #     raise RuntimeError(
+        #         f"Non-finite loss detected at global step {global_step}. "
+        #         "Try lowering learning_rate and verify model outputs."
+        #     )
+
         loss_list.append(float(loss.item()))
 
-        loss.item().backward()
-        optimizer.step()
+        # loss.item().backward()
+        loss.backward()
+        # optimizer.step()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        optimizer.step()
         scheduler.step()
 
     mean_loss = float(np.mean(loss_list))

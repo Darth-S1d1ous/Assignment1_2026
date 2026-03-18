@@ -29,12 +29,16 @@ class PosEncoder(nn.Module):
         freqs = torch.tensor(
             [10000 ** (-i / d_model) if i % 2 == 0 else -10000 ** ((1 - i) / d_model) for i in range(d_model)],
             dtype=torch.float32
-        ).unsqueeze(0)  # [C, 1]
+        ).unsqueeze(1)  # [C, 1]
+        # print("freqs shape:", freqs.shape)
         phases = torch.tensor(
             [0.0 if i % 2 == 0 else math.pi / 2 for i in range(d_model)],
             dtype=torch.float32
         ).unsqueeze(1)
-        pos = torch.arange(length, dtype=torch.float32).repeat(d_model, 1)
+        pos = torch.arange(length, dtype=torch.float32).repeat(d_model, 1) # [C, L]
+        # print("pos shape:", pos.shape)
+
+        """ pe[i, j] = the encoded value for the i-th feature channel at position j """
         pe = torch.sin(pos * freqs + phases)  # [C, L]
         self.register_buffer("pos_encoding", pe)
 
@@ -118,7 +122,8 @@ class EncoderBlock(nn.Module):
             if (i + 1) % 2 == 0:
                 out = self.conv_drops[i](out)
             res = out
-            out = self.norms[i + 1](out)
+            # out = self.norms[i + 1](out)
+            out = self.norms[i](out)
 
         out = self.self_att(out, mask)
         out = res
